@@ -65,9 +65,9 @@
 [1]: https://www.baidu.com
 这一部分可以放在任何地方
 
-![图片alt](assets/BingWallpaperx.jpg)
+![图片alt](../assets/BingWallpaperx.jpg)
 
-[![图片+链接](assets/BingWallpaperx.jpg)](https://www.baidu.com)
+[![图片+链接](../assets/BingWallpaperx.jpg)](https://www.baidu.com)
 
 \转义字符
 
