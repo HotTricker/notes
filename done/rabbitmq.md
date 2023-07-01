@@ -1,6 +1,6 @@
-# RabbitMQ
+# 《RabbitMQ实战指南》笔记
 
-- [RabbitMQ](#rabbitmq)
+- [《RabbitMQ实战指南》笔记](#rabbitmq实战指南笔记)
   - [消息中间件](#消息中间件)
   - [基础](#基础)
     - [交换器](#交换器)
