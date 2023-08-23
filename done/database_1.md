@@ -43,12 +43,12 @@
 
 - 关系代数
 
-  例如 $\pi_{name,}(\sigma_{=c2}(R\Join{S}))$
+  例如 $\pi_{姓名，课程名}(\sigma_{课程号=c2}(R\Join{S}))$
 
 - 关系演算
   - 元组演算（基于逻辑）
   
-    例如 $\{\,t\,|(\exist\,{u}(R(t)\wedge{W(u)}\wedge{t[3] < u[1]})\}$
+    例如 $\{\,t\,|(\exist\,u)(R(t)\wedge{W(u)}\wedge{t[3] < u[1]})\}$
 
   - 域演算 （基于示例）
 
