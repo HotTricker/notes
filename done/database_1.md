@@ -340,6 +340,7 @@ Select AVG(Sage) From Student;
 
 ```sql
 SELECT * FROM table1 natural join table2;//公共属性只出现一次
+SELECT * FROM table1 cross join table2;//笛卡尔积
 SELECT * FROM table1 inner join table2 on table1.a1=table2.a1;//a1出现两次
 SELECT * FROM table1 left [outer] join table2 on table1.a1=table2.a1; //left,right,full三选一，outer可省略
 SELECT * FROM table1 right join table2 using(a1，a2,...); //a1,a2是共有属性的子集，且只出现一次

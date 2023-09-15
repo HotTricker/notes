@@ -658,6 +658,9 @@
     - TRUE OR NULL=TRUE，FALSE AND NULL 结果为 FALSE
     - FALSE OR NULL 结果为 NULL，TRUE AND NULL 结果为 NULL，NOT NULL 结果为 NULL，NULL XOR TRUE/FALSE/NULL 结果为 NULL，NULL = NULL 结果为 NULL
     - IS NULL 是唯一可以将NULL转换为逻辑真假的运算符
+  - datediff(a,b)返回a-b的天数
+  - mysql between ... and ... 包括边界值
+  - select count(1) from t 统计行数
 
 ## 网络
 
