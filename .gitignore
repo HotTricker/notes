@@ -1,4 +1,2 @@
 .vscode
-kubernetes.md
-tmp.md
-go-zero.md
+tmp/*
