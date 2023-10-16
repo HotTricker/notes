@@ -55,4 +55,53 @@
 - pod是 Kubernetes 项目的原子调度单位，对应操作系统“进程组”的概念，是一组共享了某些资源的容器(network+volume)
 - Kubernetes 项目的调度器，是统一按照 Pod 而非容器的资源需求进行计算的，防止某些容器必须一起但是资源又不足产生死锁
 - pod的实现需要一个中间容器，infra将永远被第一个创建，永远处于暂停状态。用户创建的容器会加入到infra的network namespace
-- 在 Pod 中，Init Container 容器会按顺序逐一启动，而直到它们都启动并且退出了，用户容器才会启动。
+- 在 Pod 中，Init Container 容器会按顺序逐一启动，而直到它们都启动并且退出了，用户容器才会启动(用户容器之间是无序的)。
+- 调度、网络、存储、安全，各种namespace相关的属性基本上都是pod级别的
+- nodeSelector将pod和node进行绑定，只能运行在携带有规定标签的节点上，否则调度失败
+- nodename：一旦赋值就会认为已经经过调度，一般由调度器设置。用户如果设置会骗过调度器。
+- hostaliases：定义了pod的hosts文件，如果直接修改hosts文件，删除重建后会覆盖修改。
+- ImagePullPolicy：镜像拉取策略，always/never/ifnotpresent
+- lifecycle：钩子，postStart(容器启动后立刻执行)/preStop(容器被杀死之前)
+- pod状态：
+  - pending：已经创建并保存在etcd但是不能顺利创建(比如调度不成功)
+  - running：已经调度成功跟具体节点绑定，容器都创建成功，并且至少有一个运行中
+  - succeded：所有容器都运行完毕并已经退出
+  - failed：pod里至少有一个容器不正常退出
+  - unknow：状态不能持续被kubelet汇报给api-server，可能是通信问题
+  - 细分出conditions：podScheduled、Ready（pod不仅running，而且可以提供服务了）、Initialized、Unschedulable
+- porjected volume投射数据卷，为容器提供预先定义好的数据，比如secret
+- 配置文件可以放在configmap
+
+### 控制器
+
+- 所有的控制器统一放在/pkg/controller目录，都遵循一个控制循环(调谐循环)，检查实际状态是否满足期望状态，不满足就调整为期望状态。实际状态来自集群本身，期望状态来自用户提交的yaml文件
+- deployment(缩写是deploy)
+  - deployment中的template字段定义其实就是一个标准的pod对象定义，所有其管理的实例都根据template创建，这就是pod模板
+  - 类似的控制器都是：上半部分的控制器定义和期望状态+下半部分被控制对象模板
+  - deployment提供水平扩展/收缩的功能，可以通过滚动更新方式升级，如果新pod有问题，那么滚动更新立刻就停止了，然后开发和运维介入
+  - deployment操纵的其实算是replicaset对象(副本数目定义+pod模板)，replicaset的名字由deployment名字+随机字符串组成
+  - `kubectl create -f xxx-deployment.yaml --record`record可以记录操作执行的命令
+  - `kubectl get deployments`查看deployment状态，`kubectl get rs`查看replicaset状态，deployment只是多了一个up-to-date这个跟版本有关的字段
+  - `kubectl rollout status xxx`实时查看状态变化 `kubectl rollout history xxx`查看历史版本 `kubectl rollout undo xxx`回滚到上一版本，加上--to-revision=x回到版本x `kubectl rollout pause xxx`pause暂停，resume恢复，期间的修改只触发一次滚动更新
+- statefulset，对有状态应用，抽象出拓扑状态和存储状态。记录并在重新创建时恢复这些状态
+  - 拓扑状态
+    - (访问service可以通过虚ip或者dns方式，dns可以用headless service，记录被代理pod的ip)
+    - 有状态的应该用dns或者hostname，而不是ip访问
+  - 存储状态
+    - 定义一个PVC生命想要的Volume属性，在pod中生命使用这个pvc。pv由运维人员绑定具体的实现
+    - kubernetes通过headless service为这些有编号的pod生成同样编号的dns记录，分配并创建一个同样编号的pvc
+    - pod删除后pvc和pv并不删除，已经写入的数据也会存在远程存储服务里
+  - statefulset其实是对现有运维业务的容器化抽象，涉及到升级、版本管理等工程化的能力才更体现k8s的好处。`kubectl patch ...`以补丁的方式升级。修改partion的值为2，则更新时序号小于2的pod不会更新，即使重启。
+- `kubectl set image xxx xx=xx`以及`kubectl edit xxx`
+- deamonSet，运行一个daemon pod。这个pod运行在每个节点上，每个节点只有一个这样的pod实例，新的节点加入集群会自动创建，旧的节点被删除后自动回收(缩写是ds)
+  - 各种网络、存储、监控、日志都需要运行在每一个节点上
+  - 在创建pod的时候加上nodeAffinity，找到节点。还要加上tolerations，才能在noscheduable上调度
+  - 一般要加上resources字段，防止daemonset占用过多宿主机资源
+  - 可以向deployment一样做record和版本管理，是通过controllerRevision记录某种controller对象的版本，其data字段保存该版本对应的daemonset的api对象，annotation记录创建该对象的命令。回滚后其实不会回退版本号而是版本号+1（statefulset也是用的controllerRevision）
+- job用来处理短作业，前面主要编排的都是长作业，要保持running，job计算完就会退出。
+  - job不立刻要求你定义一个selector来描述控制哪些pod，创建后会自动加上一个controller-uid={{随机字符串}}的label，避免不同job管理的对象重合。
+  - 在模板中定义restartPolicy=Never标识永远不重启，否则还会重新计算。Job对象里只允许设置为Never/OnFailure，Deployment里，只允许被设置为Always。失败的话会创建新的pod去计算，有限次并且间隔时间指数中增加。如果是OnFailure则失败后重启pod里的容器尝试
+  - 可以设置最长运行时间，超时后终止
+  - 控制的也是pod，可以设置最大同时运行数和最小完成数
+  - cronJob定时任务，cronjob和job的关系，类似deployment和replicaSet，可以指定时间周期，以及之前的job没执行完时的策略
+- 声明式api，就是只需提交定义好的对象声明期望的状态，多个api写端以patch的方式对对象进行修改
