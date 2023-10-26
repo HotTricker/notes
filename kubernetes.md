@@ -232,7 +232,6 @@
 - 自定义监控指标，其实就是一个 Prometheus 项目的 Adaptor
   - HPA 的配置就是设置 Auto Scaling 规则的地方。比如，scaleTargetRef 字段，指定了被监控的对象是名叫 sample-metrics-app 的 Deployment，也就是我们上面部署的被监控应用。并且，它最小的实例数目是 2，最大是 10。在 metrics 字段，我们指定了这个 HPA 进行 Scale 的依据，是名叫 http_requests 的 Metrics。而获取这个 Metrics 的途径，则是访问名叫 sample-metrics-app 的 Service。
   - 对于一个多实例应用来说，通过 Service 来采集 Pod 的 Custom Metrics 其实才是合理的做法
-- hpa：通过metrics server获取数据并根据扩缩容规则计算，得到目标pod副本数，然后scale
 
 ## 日志
 
@@ -241,3 +240,32 @@
 - 一种方案是logging agent。一般都会以daemonSet的方式运行在节点上，然后将宿主机上的容器目录挂载进去，最后转发出去
 - 第一种方案要求日志输出到stdout和stderr，如果要输出到文件，可以通过sidecar容器重新输出到stdout和stderr
 - 第三种方案是通过sidecar直接发送到远程存储，资源消耗可能较多
+
+## 面试题
+
+- [ ] 什么是k8s
+  - 为容器提供部署、调度、服务发现和动态伸缩等一系列功能，有完备的集群管理能力（安全防护、服务注册发现、负载均衡、故障发现和自我修复、滚动升级和在线扩容、资源调度和配额管理）。
+- [ ] k8s VS docker
+  - docker提供容器的生命周期管理，将应用所需的设置和依赖打包到一个容器
+  - k8s用来关联和编排多个主机上的容器
+- [ ] k8s如何实现集群管理
+  - 将机器划分为master和工作节点，master上运行着集群管理相关的一组进程apiServer、controller-manager和scheduler，这些进程自动完成了集群的管理
+- [ ] k8s相关概念
+  - master 管理节点，拥有etcd，运行apiServer、controller-manager和scheduler进程
+  - node 运行pod的服务节点，是pod的宿主机
+  - kubelet，每个节点上运行的主要node-agent，可以监视节点上的pods，挂载需要的存储卷，运行pod中的容器，报告pod/Node的状态。pod更新、pod生命周期变化、kubelet自定义的执行周期、定期清理活动都是驱动控制循环的事件
+  - pod 运行在同一node上若干容器的组合，使用相同的网络命名空间、IP、端口，能通过localhost进行通信。是创建、调度、管理的最小单位。是比容器更高的抽象
+  - label 一系列的键值对，和资源对象是多对多的关系，通过selector查询和筛选资源对象
+  - replicaSet 用来管理无状态pod，保证集群中存在指定数量的副本，数量不对会自动调整
+  - deployment 操作replicaset，可以实现滚动升级，实时获知部署进度
+  - hpa 通过metrics server获取数据并根据扩缩容规则计算，得到目标pod副本数，然后scale
+  - service 定义了pod的逻辑集合和访问该集合的策略，是服务的抽象，提供服务访问入口以及服务代理和发现机制
+  - volume 定义在pod上，可以被一个或多个pod中的容器挂载到某个目录下
+  - namespace 用于实现多租户的资源隔离，大多数资源都位于某些名称空间，一些底层资源比如节点和持久化卷除外
+- [ ] kube-proxy
+  - 运行在所有节点上，监听service和endpoint的变化，创建路由规则以提供服务ip和负载均衡功能
+- [ ] static pod
+  - kubelet管理的仅存在于特定node上的pod，不能通过apiServer管理，也无法进行健康检查。总是由kubelet创建
+- [ ] pod的状态
+  - pending 已经创建pod，pod内还有一个或多个容器的镜像没创建，包括正在下载镜像的过程
+  - running pod中所有容器均已创建，且至少有一个容器处于运行状态，
